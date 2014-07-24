@@ -53,18 +53,70 @@ public class Word2Vec implements Serializable{
 	SentenceIteratorFactory sentenceIteratorFactory;
 	Tokenizer tokenizer;
 	
-	public Word2Vec(File trainCorpus) {
-		this(trainCorpus, LineSentenceIteratorFactory.getInstance());
+	private Word2Vec(Word2VecBuilder builder) {
+		this.window = builder.window;
+		this.layerSize = builder.layerSize;
+		this.minCount = builder.minCount;
+		this.startingAlpha = builder.startingAlpha;
+		this.sentenceIteratorFactory = builder.sentenceIteratorFactory;
+		this.tokenizer = builder.tokenizer;
+		this.trainCorpus = builder.trainCorpus;
 	}
-	
-	public Word2Vec(File trainCorpus, SentenceIteratorFactory sentenceIteratorFactory) {
-		this(trainCorpus, sentenceIteratorFactory, new RegexTokenizer());
-	}
-	
-	public Word2Vec(File trainCorpus, SentenceIteratorFactory sentenceIteratorFactory, Tokenizer tokenizer)  {
-		this.trainCorpus = trainCorpus;
-		this.sentenceIteratorFactory = sentenceIteratorFactory;
-		this.tokenizer = tokenizer;
+
+
+	public static class Word2VecBuilder {
+		private int window = 5;
+		private int layerSize = 100;
+		private int minCount = 5;
+		private double startingAlpha = 0.024;
+		
+		private SentenceIteratorFactory sentenceIteratorFactory;
+		private Tokenizer tokenizer;
+		private File trainCorpus;
+		
+		public Word2VecBuilder(File trainCorpus) {
+			this.trainCorpus = trainCorpus;
+			this.tokenizer = new RegexTokenizer();
+			sentenceIteratorFactory = LineSentenceIteratorFactory.getInstance();
+		}
+		
+		public Word2VecBuilder(String trainFilePath) {
+			this(new File(trainFilePath));
+		}
+		
+		public Word2VecBuilder window(int window) {
+			this.window = window;
+			return this; 
+		}
+		
+		public Word2VecBuilder layerSize(int layerSize) {
+			this.layerSize = layerSize;
+			return this;
+		}
+		
+		public Word2VecBuilder minCount(int minCount) {
+			this.minCount = minCount;
+			return this;
+		}
+		
+		public Word2VecBuilder alpha(double alpha) {
+			this.startingAlpha = alpha;
+			return this;
+		}
+		
+		public Word2VecBuilder sentenceIteratorFactory(SentenceIteratorFactory factory) {
+			this.sentenceIteratorFactory = factory;
+			return this;
+		}
+		
+		public Word2VecBuilder tokenizer(Tokenizer tokenizer) {
+			this.tokenizer = tokenizer;
+			return this;
+		}
+		
+		public Word2Vec build() {
+			return new Word2Vec(this);
+		}
 	}
 	
 	public void save(String path) {
@@ -74,12 +126,10 @@ public class Word2Vec implements Serializable{
 			out.writeObject(this);
 			out.close();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(1);
 		}
 		catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(1);
 		}
@@ -92,15 +142,12 @@ public class Word2Vec implements Serializable{
 			model = (Word2Vec) input.readObject();
 			input.close();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(1);
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(1);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.exit(1);
 		}
@@ -130,6 +177,10 @@ public class Word2Vec implements Serializable{
 	/** Get most similar words to word along with their similarity */
 	public List<WordWithSimilarity> mostSimilar(String word, int topn) {
 		List<WordWithSimilarity> result = Lists.newArrayList();
+		
+		if (!vocab.containsKey(word)) {
+			return result;
+		}
 		for (Entry<String, WordNeuron> entry : vocab.entrySet()) {
 			String word2 = entry.getKey();
 			if (!word2.equals(word)) {
@@ -138,6 +189,10 @@ public class Word2Vec implements Serializable{
 		}
 		Collections.sort(result);
 		return result.subList(0, topn);
+	}
+	
+	public boolean isInVocab(String word) {
+		return vocab.containsKey(word);
 	}
 	
 	
@@ -244,6 +299,7 @@ public class Word2Vec implements Serializable{
 		}
 		
 		createHuffmanTree(counter);
+		logger.info(String.format("numWords in Corpus:%d", totalWords));
 	}
 	
 
