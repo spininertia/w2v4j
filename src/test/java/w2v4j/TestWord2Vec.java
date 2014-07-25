@@ -11,8 +11,8 @@ import com.medallia.w2v4j.WordWithSimilarity;
 
 public class TestWord2Vec {
 	
-	static final String TRAIN_PATH = "src/main/resources/data/text8";
-	static final String MODEL_PATH = "src/main/resources/model/text8.model";
+	static final String TRAIN_PATH = "src/main/resources/data/hilton_2014Q1_comments.segmented_cleaned";
+	static final String MODEL_PATH = "src/main/resources/model/hilton.model";
 	@Test
 	public void testTrain() {
 		Word2Vec model = new Word2VecBuilder(TRAIN_PATH)
@@ -29,7 +29,7 @@ public class TestWord2Vec {
 	@Test
 	public void testLoad() {
 		Word2Vec model = Word2Vec.load(MODEL_PATH);
-		for (WordWithSimilarity word : model.mostSimilar("hadoop", 50)) {
+		for (WordWithSimilarity word : model.mostSimilar("dirty", 20)) {
 			System.out.println(word);
 		}
 	}

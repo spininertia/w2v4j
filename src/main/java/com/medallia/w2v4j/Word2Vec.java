@@ -46,6 +46,7 @@ public class Word2Vec implements Serializable{
 	double startingAlpha = 0.025;
 	
 	long totalWords = 0;
+	Random random = new Random();
 	
 	Map<String, WordNeuron> vocab = Maps.newHashMap();
 	
@@ -205,7 +206,6 @@ public class Word2Vec implements Serializable{
 	
 	private void buildModel() {
 		Iterator<String> sentenceIterator = sentenceIteratorFactory.createSentenceIterator(trainCorpus);
-		Random random = new Random();
 		int sentenceCount = 0;
 		int actualWordCount = 0;
 		double alpha = startingAlpha;
@@ -224,38 +224,42 @@ public class Word2Vec implements Serializable{
 				logger.info(sentenceCount + " sentences trained.." );
 			}
 			
-			for (int contextWordPos = 0; contextWordPos < words.length; contextWordPos++) {
-				String contextWord = words[contextWordPos];
-				// skip OOV word
-				if (isOovWord(contextWord)) continue;
-				
-				WordNeuron contextWordNeuron = vocab.get(contextWord);
-				int reducedWindow = random.nextInt(window);
-				int start = Math.max(0, contextWordPos - window + reducedWindow);
-				int end = Math.min(words.length, contextWordPos + window + 1 - reducedWindow);
-				
-				for (int inputWordPos = start; inputWordPos < end; inputWordPos++) {
-					if (inputWordPos == contextWordPos) continue;
-					
-					String inputWord = words[inputWordPos];
-					// skip OOV word
-					if (isOovWord(inputWord)) continue;
-					WordNeuron inputWordNeuron = vocab.get(inputWord);
-					
-					double[] inputWordVector = Arrays.copyOf(inputWordNeuron.vector, layerSize);
-					for (int i = 0; i < contextWordNeuron.getCodeLen(); i++) {
-						NodeNeuron nodeNeuron = contextWordNeuron.points.get(i);
-						Code code = contextWordNeuron.code.get(i);
-						double prob = 1.0 / (1 + Math.exp(-Utils.dotProduct(nodeNeuron.vector, inputWordVector))); // TODO change exp to table lookup to speed-up
-						double gradient = (1 - code.getValue() - prob) * alpha;
-						Utils.gradientUpdate(inputWordNeuron.vector, nodeNeuron.vector, gradient);
-						Utils.gradientUpdate(nodeNeuron.vector, inputWordVector, gradient);
-					}
-				}
-			}
+			trainSkipGramForSentence(alpha, words);
 		}
 		
 		normalize();
+	}
+
+	private void trainSkipGramForSentence(double alpha, String[] sentence) {
+		for (int contextWordPos = 0; contextWordPos < sentence.length; contextWordPos++) {
+			String contextWord = sentence[contextWordPos];
+			// skip OOV word
+			if (isOovWord(contextWord)) continue;
+			
+			WordNeuron contextWordNeuron = vocab.get(contextWord);
+			int reducedWindow = random.nextInt(window);
+			int start = Math.max(0, contextWordPos - window + reducedWindow);
+			int end = Math.min(sentence.length, contextWordPos + window + 1 - reducedWindow);
+			
+			for (int inputWordPos = start; inputWordPos < end; inputWordPos++) {
+				if (inputWordPos == contextWordPos) continue;
+				
+				String inputWord = sentence[inputWordPos];
+				// skip OOV word
+				if (isOovWord(inputWord)) continue;
+				WordNeuron inputWordNeuron = vocab.get(inputWord);
+				
+				double[] inputWordVector = Arrays.copyOf(inputWordNeuron.vector, layerSize);
+				for (int i = 0; i < contextWordNeuron.getCodeLen(); i++) {
+					NodeNeuron nodeNeuron = contextWordNeuron.points.get(i);
+					Code code = contextWordNeuron.code.get(i);
+					double prob = 1.0 / (1 + Math.exp(-Utils.dotProduct(nodeNeuron.vector, inputWordVector))); // TODO change exp to table lookup to speed-up
+					double gradient = (1 - code.getValue() - prob) * alpha;
+					Utils.gradientUpdate(inputWordNeuron.vector, nodeNeuron.vector, gradient);
+					Utils.gradientUpdate(nodeNeuron.vector, inputWordVector, gradient);
+				}
+			}
+		}
 	}
 	
 	private void normalize() {
