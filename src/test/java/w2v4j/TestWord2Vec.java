@@ -29,7 +29,7 @@ public class TestWord2Vec {
 	@Test
 	public void testLoad() {
 		Word2Vec model = Word2Vec.load(MODEL_PATH);
-		for (WordWithSimilarity word : model.mostSimilar("dirty", 20)) {
+		for (WordWithSimilarity word : model.mostSimilar("staff", 20)) {
 			System.out.println(word);
 		}
 	}

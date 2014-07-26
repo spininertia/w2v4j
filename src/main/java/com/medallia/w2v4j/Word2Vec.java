@@ -9,14 +9,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
-import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,6 +28,7 @@ import com.medallia.w2v4j.iterator.LineSentenceIteratorFactory;
 import com.medallia.w2v4j.iterator.SentenceIteratorFactory;
 import com.medallia.w2v4j.tokenizer.RegexTokenizer;
 import com.medallia.w2v4j.tokenizer.Tokenizer;
+import com.medallia.w2v4j.utils.FileSplitter;
 import com.medallia.w2v4j.utils.Utils;
 
 /**
@@ -40,14 +40,17 @@ public class Word2Vec implements Serializable{
 	static final double MIN_ALPHA = 0.0001; // don't allow learning rate to drop below this threshold
 	static final String OOV_WORD = "<OOV>";
 	
+	int numWorker = 4;
 	int window = 5;
 	int layerSize = 100;
 	int minCount = 100;
-	double startingAlpha = 0.025;
+	double initAlpha = 0.025;
 	
 	long totalWords = 0;
-	Random random = new Random();
-	
+	AtomicLong wordCount = new AtomicLong(0);
+	AtomicLong sentenceCount = new AtomicLong(0);
+	volatile double alpha;
+
 	Map<String, WordNeuron> vocab = Maps.newHashMap();
 	
 	File trainCorpus;
@@ -58,10 +61,11 @@ public class Word2Vec implements Serializable{
 		this.window = builder.window;
 		this.layerSize = builder.layerSize;
 		this.minCount = builder.minCount;
-		this.startingAlpha = builder.startingAlpha;
+		this.initAlpha = builder.startingAlpha;
 		this.sentenceIteratorFactory = builder.sentenceIteratorFactory;
 		this.tokenizer = builder.tokenizer;
 		this.trainCorpus = builder.trainCorpus;
+		this.numWorker = builder.numWorker;
 	}
 
 
@@ -70,6 +74,7 @@ public class Word2Vec implements Serializable{
 		private int layerSize = 100;
 		private int minCount = 5;
 		private double startingAlpha = 0.024;
+		private int numWorker = 4;
 		
 		private SentenceIteratorFactory sentenceIteratorFactory;
 		private Tokenizer tokenizer;
@@ -112,6 +117,11 @@ public class Word2Vec implements Serializable{
 		
 		public Word2VecBuilder tokenizer(Tokenizer tokenizer) {
 			this.tokenizer = tokenizer;
+			return this;
+		}
+		
+		public Word2VecBuilder numWorker(int numWorker) {
+			this.numWorker = numWorker;
 			return this;
 		}
 		
@@ -205,62 +215,35 @@ public class Word2Vec implements Serializable{
 	}
 	
 	private void buildModel() {
-		Iterator<String> sentenceIterator = sentenceIteratorFactory.createSentenceIterator(trainCorpus);
-		int sentenceCount = 0;
-		int actualWordCount = 0;
-		double alpha = startingAlpha;
-		
-		while (sentenceIterator.hasNext()) {
-			String[] words = tokenizer.tokenize(sentenceIterator.next());
-			actualWordCount += replaceOovWords(words);
-			sentenceCount++;
-			
-			// update alpha, the implementation here is the same as gensim's version, slightly different from google's original word2vec
-			if (sentenceCount % 100 == 0) {
-				alpha = Math.max(MIN_ALPHA, startingAlpha * (1 - 1.0 * actualWordCount / totalWords));
-			}
-			
-			if (sentenceCount % 10000 == 0) {
-				logger.info(sentenceCount + " sentences trained.." );
-			}
-			
-			trainSkipGramForSentence(alpha, words);
+		List<String> chunks = null;
+		try {
+			chunks = FileSplitter.chunkByLine(trainCorpus.getAbsolutePath(), numWorker);
+		} catch (IOException e) {
+			logger.warn("Chunk Faield");
+			return;
 		}
+		
+		List<Thread> threads = Lists.newArrayList();
+		for (int i = 0; i < numWorker; i++) {
+			Thread thread = new Thread(new Word2VecWorker(i, this, chunks.get(i)));
+			threads.add(thread);
+			thread.start();
+			logger.info("thread " + i + " started!");
+		}
+		
+		for (Thread thread : threads) {
+			try {
+				thread.join();
+			} catch (InterruptedException e) {
+				logger.warn("Thread " + thread.toString() + " interupted" );
+			}
+		}
+		
+		logger.info("All threads completed..");
 		
 		normalize();
 	}
 
-	private void trainSkipGramForSentence(double alpha, String[] sentence) {
-		for (int contextWordPos = 0; contextWordPos < sentence.length; contextWordPos++) {
-			String contextWord = sentence[contextWordPos];
-			// skip OOV word
-			if (isOovWord(contextWord)) continue;
-			
-			WordNeuron contextWordNeuron = vocab.get(contextWord);
-			int reducedWindow = random.nextInt(window);
-			int start = Math.max(0, contextWordPos - window + reducedWindow);
-			int end = Math.min(sentence.length, contextWordPos + window + 1 - reducedWindow);
-			
-			for (int inputWordPos = start; inputWordPos < end; inputWordPos++) {
-				if (inputWordPos == contextWordPos) continue;
-				
-				String inputWord = sentence[inputWordPos];
-				// skip OOV word
-				if (isOovWord(inputWord)) continue;
-				WordNeuron inputWordNeuron = vocab.get(inputWord);
-				
-				double[] inputWordVector = Arrays.copyOf(inputWordNeuron.vector, layerSize);
-				for (int i = 0; i < contextWordNeuron.getCodeLen(); i++) {
-					NodeNeuron nodeNeuron = contextWordNeuron.points.get(i);
-					Code code = contextWordNeuron.code.get(i);
-					double prob = 1.0 / (1 + Math.exp(-Utils.dotProduct(nodeNeuron.vector, inputWordVector))); // TODO change exp to table lookup to speed-up
-					double gradient = (1 - code.getValue() - prob) * alpha;
-					Utils.gradientUpdate(inputWordNeuron.vector, nodeNeuron.vector, gradient);
-					Utils.gradientUpdate(nodeNeuron.vector, inputWordVector, gradient);
-				}
-			}
-		}
-	}
 	
 	private void normalize() {
 		for (WordNeuron wordNueron: vocab.values()) {
@@ -268,12 +251,12 @@ public class Word2Vec implements Serializable{
 		}
 	}
 	
-	private boolean isOovWord(String word) {
+	boolean isOovWord(String word) {
 		return OOV_WORD.equals(word);
 	}
 	
 	/** Replace OOV word with a OOV_WORD mark, this prevents repeated hashmap look-up. */
-	private int replaceOovWords(String[] sentence) {
+	int replaceOovWords(String[] sentence) {
 		int numValidWord = 0; 
 		for (int i = 0; i < sentence.length; i++) {
 			if (!vocab.containsKey(sentence[i])) {

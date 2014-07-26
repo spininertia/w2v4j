@@ -3,6 +3,7 @@ package com.medallia.w2v4j;
 import java.io.Serializable;
 import java.util.List;
 
+import com.google.common.collect.ImmutableList;
 import com.medallia.w2v4j.utils.Utils;
 
 public class WordNeuron implements Serializable{
@@ -18,13 +19,13 @@ public class WordNeuron implements Serializable{
 	}
 	
 	double[] vector;
-	List<NodeNeuron> points;
-	List<Code> code;
+	ImmutableList<NodeNeuron> points;
+	ImmutableList<Code> code;
 	
 	public WordNeuron(int layerSize, List<NodeNeuron> points, List<Code> code) {
 		vector = Utils.randomInitialize(layerSize);
-		this.points = points;
-		this.code = code;
+		this.points = ImmutableList.copyOf(points);
+		this.code = ImmutableList.copyOf(code);
 	}
 	
 	public int getCodeLen() {
