@@ -13,6 +13,7 @@ public class TestWord2Vec {
 	
 	static final String TRAIN_PATH = "src/main/resources/data/hilton_2014Q1_comments.segmented_cleaned";
 	static final String MODEL_PATH = "src/main/resources/model/hilton.model";
+	
 	@Test
 	public void testTrain() {
 		Word2Vec model = new Word2VecBuilder(TRAIN_PATH)
@@ -23,7 +24,7 @@ public class TestWord2Vec {
 		model.save(MODEL_PATH);
 		stopwatch.stop();
 		long elapsedTime = stopwatch.elapsed(TimeUnit.SECONDS);
-		System.out.println(elapsedTime);
+		System.out.println("Time elapsed for trainnig(second):" + elapsedTime);
 	}
 	
 	@Test

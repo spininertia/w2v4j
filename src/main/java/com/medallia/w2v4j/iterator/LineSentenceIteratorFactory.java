@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.Serializable;
 import java.util.Iterator;
 
+/** Factory that produces {@link LineSentenceIterator} */
 public class LineSentenceIteratorFactory implements SentenceIteratorFactory, Serializable {
 	
 	static private LineSentenceIteratorFactory factory = new LineSentenceIteratorFactory();

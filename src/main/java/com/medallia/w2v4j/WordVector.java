@@ -6,7 +6,7 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import com.medallia.w2v4j.utils.Utils;
 
-public class WordNeuron implements Serializable{
+public class WordVector implements Serializable{
 	enum Code {
 		LEFT(0),
 		RIGHT(1);
@@ -19,10 +19,10 @@ public class WordNeuron implements Serializable{
 	}
 	
 	double[] vector;
-	ImmutableList<NodeNeuron> points;
+	ImmutableList<NodeVector> points;
 	ImmutableList<Code> code;
 	
-	public WordNeuron(int layerSize, List<NodeNeuron> points, List<Code> code) {
+	public WordVector(int layerSize, List<NodeVector> points, List<Code> code) {
 		vector = Utils.randomInitialize(layerSize);
 		this.points = ImmutableList.copyOf(points);
 		this.code = ImmutableList.copyOf(code);

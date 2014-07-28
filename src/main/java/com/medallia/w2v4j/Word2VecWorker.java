@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.medallia.w2v4j.WordNeuron.Code;
+import com.medallia.w2v4j.WordVector.Code;
 import com.medallia.w2v4j.utils.Utils;
 
 public class Word2VecWorker implements Runnable {
@@ -50,7 +50,7 @@ public class Word2VecWorker implements Runnable {
 			// skip OOV word
 			if (model.isOovWord(contextWord)) continue;
 			
-			WordNeuron contextWordNeuron = model.vocab.get(contextWord);
+			WordVector contextWordNeuron = model.vocab.get(contextWord);
 			int reducedWindow = ThreadLocalRandom.current().nextInt(model.window);
 			int start = Math.max(0, contextWordPos - model.window + reducedWindow);
 			int end = Math.min(sentence.length, contextWordPos + model.window + 1 - reducedWindow);
@@ -61,11 +61,11 @@ public class Word2VecWorker implements Runnable {
 				String inputWord = sentence[inputWordPos];
 				// skip OOV word
 				if (model.isOovWord(inputWord)) continue;
-				WordNeuron inputWordNeuron = model.vocab.get(inputWord);
+				WordVector inputWordNeuron = model.vocab.get(inputWord);
 				
 				double[] inputWordVector = Arrays.copyOf(inputWordNeuron.vector, model.layerSize);
 				for (int i = 0; i < contextWordNeuron.getCodeLen(); i++) {
-					NodeNeuron nodeNeuron = contextWordNeuron.points.get(i);
+					NodeVector nodeNeuron = contextWordNeuron.points.get(i);
 					Code code = contextWordNeuron.code.get(i);
 					double prob = 1.0 / (1 + Math.exp(-Utils.dotProduct(nodeNeuron.vector, inputWordVector))); // TODO change exp to table lookup to speed-up
 					double gradient = (1 - code.getValue() - prob) * alpha;

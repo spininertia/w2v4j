@@ -9,6 +9,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -23,7 +24,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-import com.medallia.w2v4j.WordNeuron.Code;
+import com.medallia.w2v4j.WordVector.Code;
 import com.medallia.w2v4j.iterator.LineSentenceIteratorFactory;
 import com.medallia.w2v4j.iterator.SentenceIteratorFactory;
 import com.medallia.w2v4j.tokenizer.RegexTokenizer;
@@ -40,18 +41,18 @@ public class Word2Vec implements Serializable{
 	static final double MIN_ALPHA = 0.0001; // don't allow learning rate to drop below this threshold
 	static final String OOV_WORD = "<OOV>";
 	
-	int numWorker = 4;
-	int window = 5;
-	int layerSize = 100;
-	int minCount = 100;
-	double initAlpha = 0.025;
+	final int numWorker;		// number of threads for training
+	final int window;			// window size 
+	final int layerSize;		// dimension of word vector
+	final int minCount; 		// the minimum frequency that a word in vocabulary needs to satisfy
+	final double initAlpha;		// initial learning rate
 	
-	long totalWords = 0;
-	AtomicLong wordCount = new AtomicLong(0);
-	AtomicLong sentenceCount = new AtomicLong(0);
-	volatile double alpha;
+	long totalWords = 0;							// aggregated word frequency
+	AtomicLong wordCount = new AtomicLong(0);		// current word count
+	AtomicLong sentenceCount = new AtomicLong(0);	// current sentence count
+	volatile double alpha;							// learning rate, decreasing as training proceeds
 
-	Map<String, WordNeuron> vocab = Maps.newHashMap();
+	Map<String, WordVector> vocab = Maps.newHashMap();	// map from word to its WordNeuron
 	
 	File trainCorpus;
 	SentenceIteratorFactory sentenceIteratorFactory;
@@ -68,12 +69,12 @@ public class Word2Vec implements Serializable{
 		this.numWorker = builder.numWorker;
 	}
 
-
+	/** Builder for Word2Vec. */
 	public static class Word2VecBuilder {
 		private int window = 5;
 		private int layerSize = 100;
 		private int minCount = 5;
-		private double startingAlpha = 0.024;
+		private double startingAlpha = 0.025;
 		private int numWorker = 4;
 		
 		private SentenceIteratorFactory sentenceIteratorFactory;
@@ -130,6 +131,7 @@ public class Word2Vec implements Serializable{
 		}
 	}
 	
+	/** Serialize and save the {@link Word2Vec} model. */
 	public void save(String path) {
 		ObjectOutputStream out;
 		try {
@@ -146,6 +148,7 @@ public class Word2Vec implements Serializable{
 		}
 	}
 	
+	/** Load and deserialize model from disk. */
 	public static Word2Vec load(String path) {
 		Word2Vec model = null;
 		try {
@@ -174,8 +177,8 @@ public class Word2Vec implements Serializable{
 		
 		if (word1.equals(word2)) return 1;
 		
-		WordNeuron neuron1 = vocab.get(word1);
-		WordNeuron neuron2 = vocab.get(word2);
+		WordVector neuron1 = vocab.get(word1);
+		WordVector neuron2 = vocab.get(word2);
 		
 		if (neuron1 == null || neuron2 == null) {
 			return 0;
@@ -185,28 +188,37 @@ public class Word2Vec implements Serializable{
 		return Utils.dotProduct(neuron1.vector, neuron2.vector);
 	}
 	
-	/** Get most similar words to word along with their similarity */
-	public List<WordWithSimilarity> mostSimilar(String word, int topn) {
+	/** Get n most similar words to word along with their similarity. */
+	public List<WordWithSimilarity> mostSimilar(String word, int n) {
 		List<WordWithSimilarity> result = Lists.newArrayList();
 		
 		if (!vocab.containsKey(word)) {
 			return result;
 		}
-		for (Entry<String, WordNeuron> entry : vocab.entrySet()) {
+		for (Entry<String, WordVector> entry : vocab.entrySet()) {
 			String word2 = entry.getKey();
 			if (!word2.equals(word)) {
 				result.add(new WordWithSimilarity(word2, similarity(word, word2)));
 			}
 		}
 		Collections.sort(result);
-		return result.subList(0, topn);
+		return result.subList(0, n);
 	}
 	
-	public boolean isInVocab(String word) {
+	/** Determine whether word is in vocabulary. */
+	public boolean containsWord(String word) {
 		return vocab.containsKey(word);
 	}
 	
+	/** Returns the defensive copy of the word vector */
+	public double[] getWordVector(String word) {
+		if (!containsWord(word)) {
+			return null;
+		}
+		return Arrays.copyOf(vocab.get(word).vector, layerSize);
+	}
 	
+	/** Train skip-gram model with Hierarchical Softmax. */
 	public void train() {
 		logger.info("Start building model...");
 		buildVocabulary();
@@ -244,9 +256,8 @@ public class Word2Vec implements Serializable{
 		normalize();
 	}
 
-	
 	private void normalize() {
-		for (WordNeuron wordNueron: vocab.values()) {
+		for (WordVector wordNueron: vocab.values()) {
 			Utils.normalize(wordNueron.vector);
 		}
 	}
@@ -267,7 +278,7 @@ public class Word2Vec implements Serializable{
 		}
 		return numValidWord;
 	}
-
+	
 	private void buildVocabulary() {
 		Map<String, Long> counter = Maps.newHashMap();
 		Iterator<String> sentenceIterator = sentenceIteratorFactory.createSentenceIterator(trainCorpus);
@@ -290,8 +301,10 @@ public class Word2Vec implements Serializable{
 	}
 	
 
+	/** Create Huffman Tree for Hierarchical Softmax. */
 	private void createHuffmanTree(Map<String, Long> wordMap) {
 		logger.info("Creating huffman tree...");
+		
 		Queue<HuffmanNode> heap = Queues.newPriorityQueue();
 		for (Entry<String, Long> entry : wordMap.entrySet()) {
 			// filter out words below minCount
@@ -301,35 +314,31 @@ public class Word2Vec implements Serializable{
 			}
 		}
 		
-		while (!heap.isEmpty()) {
+		int vocabSize = heap.size();
+		for (int i = 0; i < vocabSize - 1; i++) {
 			HuffmanNode min1 = heap.poll();
 			HuffmanNode min2 = heap.poll();
 			
-			// TODO might need to throw exception here if the corpus only have one word
 			HuffmanNode innerNode = new HuffmanNode(null, min1.count + min2.count);
 			innerNode.left = min1;
 			innerNode.right = min2;
 			heap.offer(innerNode);
-			
-			if (heap.size() == 1) {
-				break;
-			}
 		}
 		
-		// dfs to attach code and points to word neuron.
-		dfs(heap.poll(), new ArrayList<NodeNeuron>(), new ArrayList<Code>());
+		dfs(heap.poll(), new ArrayList<NodeVector>(), new ArrayList<Code>());
 	}
 	
-	private void dfs(HuffmanNode node, List<NodeNeuron> path, List<Code> code) {
+	/** Traverse huffman tree to attach code and points to word neuron */
+	private void dfs(HuffmanNode node, List<NodeVector> path, List<Code> code) {
 		if (node == null) return;
 		if (node.left == null && node.right == null) {
 			// leaf node
-			vocab.put(node.word, new WordNeuron(layerSize, Lists.newArrayList(path), Lists.newArrayList(code)));
+			vocab.put(node.word, new WordVector(layerSize, Lists.newArrayList(path), Lists.newArrayList(code)));
 			return;
 		} 
 		
 		// inner node
-		NodeNeuron nodeNeuron = new NodeNeuron(layerSize);
+		NodeVector nodeNeuron = new NodeVector(layerSize);
 		path.add(nodeNeuron);
 		
 		if (node.left != null) {

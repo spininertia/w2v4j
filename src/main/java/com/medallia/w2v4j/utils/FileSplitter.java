@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+/** Split file into chunks. */
 public class FileSplitter {
 	static Logger logger = LogManager.getRootLogger();
 	static final String CHUNK_PATH = "src/main/resources/tmp";
@@ -62,10 +63,5 @@ public class FileSplitter {
 		while (reader.readLine() != null) lines++;
 		reader.close();
 		return lines;
-	}
-	
-	public static void main(String[] args) throws IOException {
-		chunkByLine("src/main/resources/data/hilton_2014Q1_comments.segmented_cleaned", 4);
-		
 	}
 }

@@ -3,13 +3,22 @@ package com.medallia.w2v4j;
 import java.io.Serializable;
 
 public class WordWithSimilarity implements Serializable, Comparable<WordWithSimilarity>{
-	String word;
-	double similarity;
+	private final String word;
+	private final double similarity;
 	
 	public WordWithSimilarity(String word, double similarity) {
 		this.word = word;
 		this.similarity = similarity;
 	}
+	
+	public String getWord() {
+		return word;
+	}
+	
+	public double getSimilarity() {
+		return similarity;
+	}
+	
 
 	public int compareTo(WordWithSimilarity word) {
 		if (this.similarity < word.similarity) {
