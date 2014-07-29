@@ -4,9 +4,14 @@ import java.io.Serializable;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
-import com.medallia.w2v4j.utils.Utils;
+import com.medallia.w2v4j.utils.MathUtils;
 
+/**
+ * Vector representation for a word along with information about its path in the Huffman Tree.
+ */
 public class WordVector implements Serializable{
+	private static final long serialVersionUID = 0L;
+	
 	enum Code {
 		LEFT(0),
 		RIGHT(1);
@@ -23,7 +28,7 @@ public class WordVector implements Serializable{
 	ImmutableList<Code> code;
 	
 	public WordVector(int layerSize, List<NodeVector> points, List<Code> code) {
-		vector = Utils.randomInitialize(layerSize);
+		vector = MathUtils.randomInitialize(layerSize);
 		this.points = ImmutableList.copyOf(points);
 		this.code = ImmutableList.copyOf(code);
 	}

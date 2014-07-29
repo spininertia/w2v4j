@@ -1,8 +1,9 @@
 package com.medallia.w2v4j;
 
-import java.io.Serializable;
-
-public class WordWithSimilarity implements Serializable, Comparable<WordWithSimilarity>{
+/**
+ * Word with its similarity. 
+ */
+public class WordWithSimilarity implements Comparable<WordWithSimilarity>{
 	private final String word;
 	private final double similarity;
 	
@@ -22,9 +23,9 @@ public class WordWithSimilarity implements Serializable, Comparable<WordWithSimi
 
 	public int compareTo(WordWithSimilarity word) {
 		if (this.similarity < word.similarity) {
-			return 1;
+			return -1;
 		}
-		return -1;
+		return 1;
 	}
 	
 	@Override

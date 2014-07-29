@@ -9,7 +9,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
- * @{link LineSentenceIterator} iterates through file line by line, assuming each line is a sentence.
+ * @{Code LineSentenceIterator} iterates through file line by line, assuming each line is a sentence.
  */
 public class LineSentenceIterator implements Iterator<String>{
 	
