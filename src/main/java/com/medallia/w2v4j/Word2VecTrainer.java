@@ -1,7 +1,6 @@
 package com.medallia.w2v4j;
 
 import java.io.File;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +45,7 @@ public class Word2VecTrainer {
 	final int layerSize;		// dimension of word vector
 	final int minCount; 		// the minimum frequency that a word in vocabulary needs to satisfy
 	final double initAlpha;		// initial learning rate
+	final boolean sg;			// skip gram model
 
 	final Tokenizer tokenizer;
 	
@@ -56,6 +56,7 @@ public class Word2VecTrainer {
 		this.initAlpha = builder.initAlpha;
 		this.tokenizer = builder.tokenizer;
 		this.numWorker = builder.numWorker;
+		this.sg = builder.sg;
 	}
 
 	/** Builder for Word2Vec. */
@@ -65,6 +66,7 @@ public class Word2VecTrainer {
 		private int minCount = 5;
 		private double initAlpha = 0.025;
 		private int numWorker = 4;
+		public boolean sg = true;
 		
 		private Tokenizer tokenizer;
 		
@@ -99,6 +101,11 @@ public class Word2VecTrainer {
 		
 		public Word2VecTrainerBuilder numWorker(int numWorker) {
 			this.numWorker = numWorker;
+			return this;
+		}
+		
+		public Word2VecTrainerBuilder sg(boolean sg) {
+			this.sg = sg;
 			return this;
 		}
 		
@@ -275,7 +282,7 @@ public class Word2VecTrainer {
 			path.remove(path.size() - 1);
 		}
 		
-		class HuffmanNode implements Comparable<HuffmanNode>, Serializable{
+		class HuffmanNode implements Comparable<HuffmanNode>{
 			String word; // nullable, inner node don't have such field. 
 			long count;
 			HuffmanNode left;
@@ -333,15 +340,61 @@ public class Word2VecTrainer {
 						logger.info(String.format("%d sentences trained..", sentCount));
 					}
 				}
-				trainSkipGramForSentence(variable.alpha, words);
+				if (model.sg) {
+					trainSkipGramForSentence(variable.alpha, words);
+				} else {
+					trainCbowForSentence(variable.alpha, words);
+				}
 			}
 		}
 		
+		/** Train continuous bag of word model. */
+		private void trainCbowForSentence(double alpha, String[] sentence) {
+			for (int outputWordPos = 0; outputWordPos < sentence.length; outputWordPos++) {
+				String outputWord = sentence[outputWordPos];
+				// skip OOV word
+				if (isOovWord(outputWord)) continue;
+				
+				WordVector outputWordNeuron = model.vocab.get(outputWord);
+				int reducedWindow = ThreadLocalRandom.current().nextInt(window);
+				int start = Math.max(0, outputWordPos - window + reducedWindow);
+				int end = Math.min(sentence.length, outputWordPos + window + 1 - reducedWindow);
+				
+				double[] projection = new double[layerSize];
+				
+				for (int inputWordPos = start; inputWordPos < end; inputWordPos++) {
+					if (inputWordPos == outputWordPos) continue;
+					String inputWord = sentence[inputWordPos];
+					if (isOovWord(inputWord)) continue;
+					MathUtils.vecAdd(projection, model.vocab.get(inputWord).vector);
+				}
+				//TODO average projection?
+				
+				double[] updateVector = new double[layerSize];
+				
+				for (int i = 0; i < outputWordNeuron.getCodeLen(); i++) {
+					NodeVector nodeNeuron = outputWordNeuron.points.get(i);
+					Code code = outputWordNeuron.code.get(i);
+					double prob = MathUtils.sigmoid(MathUtils.dotProduct(projection, nodeNeuron.vector));
+					double gradient = (1 - code.getValue() - prob) * alpha;
+					MathUtils.gradientUpdate(updateVector, nodeNeuron.vector, gradient);
+					MathUtils.gradientUpdate(nodeNeuron.vector, projection, gradient);
+				}
+				
+				for (int inputWordPos = start; inputWordPos < end; inputWordPos++) {
+					if (inputWordPos == outputWordPos) continue;
+					String inputWord = sentence[inputWordPos];
+					if (isOovWord(inputWord)) continue;
+					MathUtils.vecAdd(model.vocab.get(inputWord).vector, updateVector);
+				}
+			}
+		}
+
+		/** Train skip gram model */
 		private void trainSkipGramForSentence(double alpha, String[] sentence) {
 			for (int contextWordPos = 0; contextWordPos < sentence.length; contextWordPos++) {
 				String contextWord = sentence[contextWordPos];
-				// skip OOV word
-				if (isOovWord(contextWord)) continue;
+				if (isOovWord(contextWord)) continue; // skip OOV word
 				
 				WordVector contextWordNeuron = model.vocab.get(contextWord);
 				int reducedWindow = ThreadLocalRandom.current().nextInt(window);
@@ -352,11 +405,11 @@ public class Word2VecTrainer {
 					if (inputWordPos == contextWordPos) continue;
 					
 					String inputWord = sentence[inputWordPos];
-					// skip OOV word
-					if (isOovWord(inputWord)) continue;
-					WordVector inputWordNeuron = model.vocab.get(inputWord);
+					if (isOovWord(inputWord)) continue; // skip OOV word
 					
+					WordVector inputWordNeuron = model.vocab.get(inputWord);
 					double[] inputWordVector = Arrays.copyOf(inputWordNeuron.vector, layerSize);
+					
 					for (int i = 0; i < contextWordNeuron.getCodeLen(); i++) {
 						NodeVector nodeNeuron = contextWordNeuron.points.get(i);
 						Code code = contextWordNeuron.code.get(i);

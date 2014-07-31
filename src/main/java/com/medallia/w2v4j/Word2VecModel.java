@@ -21,6 +21,7 @@ public class Word2VecModel implements Serializable{
 	final int layerSize;		// dimension of word vector
 	final int minCount; 		// the minimum frequency that a word in vocabulary needs to satisfy
 	final double initAlpha;		// initial learning rate
+	final boolean sg;			// apply skip-gram model if true, cbow other wise
 	
 	long wordCount; // number of total words trained on
 	ImmutableMap<String, WordVector> vocab;	// map from word to its WordNeuron
@@ -30,6 +31,7 @@ public class Word2VecModel implements Serializable{
 		this.layerSize = trainer.layerSize;
 		this.minCount = trainer.minCount;
 		this.initAlpha = trainer.initAlpha;
+		this.sg  = trainer.sg;
 	}
 	
 	/** Compute cosine Similarity for two words. */

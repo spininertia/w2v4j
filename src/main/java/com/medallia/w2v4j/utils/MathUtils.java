@@ -17,6 +17,24 @@ public class MathUtils {
 		return product;
 	}
 	
+	/**
+	 * Add two vectors, result is saved in the first vector
+	 */
+	public static void vecAdd(double[] vec1, double[] vec2) {
+		for (int i = 0; i < vec1.length; i++) {
+			vec1[i] += vec2[i];
+		}
+	}
+	
+	/** 
+	 * Element wise divide of vector. 
+	 */
+	public static void vecDivide(double vec[], double num) {
+		for (int i = 0; i < vec.length; i++) {
+			vec[i] /= num;
+		}
+	}
+	
 	/** Gradient update. */
 	public static void gradientUpdate(double[] vecToUpdate, final double[] vec, double gradient ) {
 		for (int i = 0; i < vecToUpdate.length; i++) {
