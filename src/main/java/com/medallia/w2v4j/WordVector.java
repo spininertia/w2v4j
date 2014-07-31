@@ -10,7 +10,7 @@ import com.medallia.w2v4j.utils.MathUtils;
 /**
  * Vector representation for a word along with information about its path in the Huffman Tree.
  */
-public class WordVector implements Serializable{
+public class WordVector implements Serializable {
 	private static final long serialVersionUID = 0L;
 	
 	enum Code {
@@ -24,10 +24,10 @@ public class WordVector implements Serializable{
 		public int getValue() { return value; }
 	}
 	
-	double samplingRate;	// sampling probability to sample this word
-	double[] vector;
-	ImmutableList<NodeVector> points;
-	ImmutableList<Code> code;
+	private final double samplingRate;	// sampling probability to sample this word
+	final double[] vector;
+	final ImmutableList<NodeVector> points;
+	final ImmutableList<Code> code;
 	
 	public WordVector(int layerSize, double sampleThreshold, double frequency, List<NodeVector> points, List<Code> code) {
 		this.samplingRate = computeSamplingRatio(sampleThreshold, frequency);
@@ -48,5 +48,4 @@ public class WordVector implements Serializable{
 	int getCodeLen() {
 		return code.size();
 	}
-	
 }

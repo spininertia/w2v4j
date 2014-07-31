@@ -21,6 +21,7 @@ public class WordWithSimilarity implements Comparable<WordWithSimilarity>{
 	}
 	
 
+	@Override
 	public int compareTo(WordWithSimilarity word) {
 		if (this.similarity < word.similarity) {
 			return -1;

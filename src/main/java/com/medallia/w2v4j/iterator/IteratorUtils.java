@@ -10,6 +10,7 @@ public class IteratorUtils {
 	
 	public static Iterable<String> fileSentenceIterable(final File file) {
 		return new Iterable<String>() {
+			@Override
 			public Iterator<String> iterator() {
 				return new LineSentenceIterator(file);
 			}

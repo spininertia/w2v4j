@@ -26,6 +26,7 @@ public class LineSentenceIterator implements Iterator<String>{
 		}
 	}
 	
+	@Override
 	public boolean hasNext() {
 		if (cachedLine != null) {
 			return true;
@@ -47,6 +48,7 @@ public class LineSentenceIterator implements Iterator<String>{
 		return cachedLine != null;
 	}
 
+	@Override
 	public String next() {
 		if (hasNext()) {
 			String line = cachedLine;
@@ -56,6 +58,7 @@ public class LineSentenceIterator implements Iterator<String>{
 		throw new NoSuchElementException();
 	}
 
+	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();
 	}

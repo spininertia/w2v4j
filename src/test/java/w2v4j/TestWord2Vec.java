@@ -10,6 +10,7 @@ import org.junit.Test;
 import com.google.common.base.Stopwatch;
 import com.medallia.w2v4j.Word2VecModel;
 import com.medallia.w2v4j.Word2VecTrainer;
+import com.medallia.w2v4j.Word2VecTrainer.NeuralNetworkLanguageModel;
 import com.medallia.w2v4j.Word2VecTrainer.Word2VecTrainerBuilder;
 import com.medallia.w2v4j.WordWithSimilarity;
 import com.medallia.w2v4j.utils.SerializationUtils;
@@ -24,7 +25,7 @@ public class TestWord2Vec {
 		Word2VecTrainer trainer = new Word2VecTrainerBuilder()
 						.numWorker(Runtime.getRuntime().availableProcessors())
 						.minCount(100)
-						.sg(false)
+						.model(NeuralNetworkLanguageModel.CBOW)
 						.build();
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Word2VecModel model = trainer.train(new File(TRAIN_PATH));
@@ -41,5 +42,20 @@ public class TestWord2Vec {
 			System.out.println(word);
 		}
 	}
-
+	
+//	@Test
+//	public void testSerialization() {
+//		Word2VecModel model;
+//		
+//		ByteBuffer buffer = new ByteBuffer();
+//		ByteArrayOutputStream
+//		ObjectOutputStream out = new ObjectOutputStream();
+//		out.writeObject(model);
+//		out.close();
+//		
+//		Word2VecModel deserialized = ...
+//				
+//		assertEquals(deserialized, model);
+//		
+//	}
 }

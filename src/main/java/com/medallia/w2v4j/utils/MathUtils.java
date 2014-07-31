@@ -7,7 +7,10 @@ import com.google.common.base.Preconditions;
  */
 public class MathUtils {
 	
-	/** Compute dot product of two vector. */
+	/** 
+	 * Compute dot product of two vector 
+	 * Note that this mutates the input for performance
+	 * */
 	public static double dotProduct(double[] vec1, double[] vec2) {
 		Preconditions.checkArgument(vec1.length == vec2.length, "dimension not match");
 		double product = 0;
@@ -19,6 +22,7 @@ public class MathUtils {
 	
 	/**
 	 * Add two vectors, result is saved in the first vector
+	 * Note that this mutates the input for performance
 	 */
 	public static void vecAdd(double[] vec1, double[] vec2) {
 		for (int i = 0; i < vec1.length; i++) {
@@ -27,7 +31,8 @@ public class MathUtils {
 	}
 	
 	/** 
-	 * Element wise divide of vector. 
+	 * Element wise divide of vector.
+	 * Note that this mutates the input for performance 
 	 */
 	public static void vecDivide(double vec[], double num) {
 		for (int i = 0; i < vec.length; i++) {
@@ -36,22 +41,27 @@ public class MathUtils {
 	}
 	
 	/** Gradient update. */
-	public static void gradientUpdate(double[] vecToUpdate, final double[] vec, double gradient ) {
+	public static void gradientUpdate(double[] vecToUpdate, final double[] vec, double gradient) {
 		for (int i = 0; i < vecToUpdate.length; i++) {
 			vecToUpdate[i] += gradient * vec[i];
 		}
 	}
 	
-	/** L2-normalize a vector. */
+	/** 
+	 * L2-normalize a vector
+	 * Note that this mutates the input for performance
+	 */
 	public static void normalize(double[] vec) {
-		double vecLen = vectorLen(vec);
+		double vecLen = vecLen(vec);
 		for (int i = 0; i < vec.length; i++) {
 			vec[i] /= vecLen;
 		}
 	}
 	
-	/** Compute vector length of vector. */
-	public static double vectorLen(double[] vec) {
+	/** 
+	 * Compute vector length of vector. 
+	 */
+	public static double vecLen(double[] vec) {
 		double l2 = 0;
 		for (double val : vec) {
 			l2 += val * val;
