@@ -24,6 +24,7 @@ public class TestWord2Vec {
 		Word2VecTrainer trainer = new Word2VecTrainerBuilder()
 						.numWorker(Runtime.getRuntime().availableProcessors())
 						.minCount(100)
+						.sg(false)
 						.build();
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		Word2VecModel model = trainer.train(new File(TRAIN_PATH));

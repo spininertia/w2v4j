@@ -46,6 +46,8 @@ public class Word2VecTrainer {
 	final int minCount; 		// the minimum frequency that a word in vocabulary needs to satisfy
 	final double initAlpha;		// initial learning rate
 	final boolean sg;			// skip gram model
+	final boolean sampling;		// enable sub-sampling for frequent words
+	final double samplingThreshold; // only useful when sampling is turned on
 
 	final Tokenizer tokenizer;
 	
@@ -57,6 +59,8 @@ public class Word2VecTrainer {
 		this.tokenizer = builder.tokenizer;
 		this.numWorker = builder.numWorker;
 		this.sg = builder.sg;
+		this.sampling = builder.sampling;
+		this.samplingThreshold = builder.samplingThreshold;
 	}
 
 	/** Builder for Word2Vec. */
@@ -66,7 +70,9 @@ public class Word2VecTrainer {
 		private int minCount = 5;
 		private double initAlpha = 0.025;
 		private int numWorker = 4;
-		public boolean sg = true;
+		private boolean sampling = false;
+		private boolean sg = true;
+		private double samplingThreshold = 1e-5;
 		
 		private Tokenizer tokenizer;
 		
@@ -106,6 +112,16 @@ public class Word2VecTrainer {
 		
 		public Word2VecTrainerBuilder sg(boolean sg) {
 			this.sg = sg;
+			return this;
+		}
+		
+		public Word2VecTrainerBuilder sampling(boolean sampling) {
+			this.sampling = sampling;
+			return this;
+		}
+		
+		public Word2VecTrainerBuilder samplingThreshold(double threshold) {
+			this.samplingThreshold = threshold;
 			return this;
 		}
 		
@@ -194,23 +210,6 @@ public class Word2VecTrainer {
 		}
 	}
 	
-	boolean isOovWord(String word) {
-		return OOV_WORD.equals(word);
-	}
-	
-	/** Replace OOV word with a OOV_WORD mark, this prevents repeated hashmap look-up. */
-	int replaceOovWords(String[] sentence, Word2VecModel model) {
-		int numValidWord = 0; 
-		for (int i = 0; i < sentence.length; i++) {
-			if (!model.vocab.containsKey(sentence[i])) {
-				sentence[i] = OOV_WORD;
-			} else {
-				numValidWord++;
-			}
-		}
-		return numValidWord;
-	}
-	
 	// variables that needs to synchronize among workers on different threads
 	// abstract these parameters out to assert the train method has no side effect and is thread safe
 	class ModelLocalVariable {
@@ -259,7 +258,7 @@ public class Word2VecTrainer {
 			if (node == null) return;
 			if (node.left == null && node.right == null) {
 				// leaf node
-				vocab.put(node.word, new WordVector(layerSize, Lists.newArrayList(path), Lists.newArrayList(code)));
+				vocab.put(node.word, new WordVector(layerSize, samplingThreshold, 1.0 * node.count / wordCount, Lists.newArrayList(path), Lists.newArrayList(code)));
 				return;
 			} 
 			
@@ -333,6 +332,10 @@ public class Word2VecTrainer {
 			for (String sentence : sentences) {
 				String[] words = tokenizer.tokenize(sentence);
 				long crtWordCount = variable.wordCount.addAndGet(replaceOovWords(words, model));
+				if (sampling) {
+					words = sampleWords(words);
+				}
+
 				long sentCount = variable.sentenceCount.incrementAndGet();
 				if (sentCount % 100 == 0) {
 					variable.alpha = Math.max(Word2VecTrainer.MIN_ALPHA, initAlpha * (1 - 1.0 * crtWordCount / model.wordCount));
@@ -368,7 +371,6 @@ public class Word2VecTrainer {
 					if (isOovWord(inputWord)) continue;
 					MathUtils.vecAdd(projection, model.vocab.get(inputWord).vector);
 				}
-				//TODO average projection?
 				
 				double[] updateVector = new double[layerSize];
 				
@@ -420,6 +422,37 @@ public class Word2VecTrainer {
 					}
 				}
 			}
+		}
+		
+		boolean isOovWord(String word) {
+			return OOV_WORD.equals(word);
+		}
+		
+		/** Replace OOV word with a OOV_WORD mark, this prevents repeated hashmap look-up. */
+		int replaceOovWords(String[] sentence, Word2VecModel model) {
+			int numValidWord = 0; 
+			for (int i = 0; i < sentence.length; i++) {
+				if (!model.vocab.containsKey(sentence[i])) {
+					sentence[i] = OOV_WORD;
+				} else {
+					numValidWord++;
+				}
+			}
+			return numValidWord;
+		}
+		
+		private String[] sampleWords(String[] words) {
+			List<String> sampled = Lists.newArrayList();
+			for (String word : words) {
+				if (!isOovWord(word)) {
+					WordVector wordVec = model.vocab.get(word);
+					if (wordVec.sample()) {
+						sampled.add(word);
+					}
+				}
+			}
+			
+			return sampled.toArray(new String[0]);
 		}
 
 	}
