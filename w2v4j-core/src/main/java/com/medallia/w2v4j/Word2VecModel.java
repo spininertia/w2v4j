@@ -21,7 +21,6 @@ public class Word2VecModel implements Serializable {
 	private final ImmutableMap<String, WordVector> vocab;	// map from word to its WordNeuron
 	
 	Word2VecModel(ImmutableMap<String, WordVector> vocab) {
-		
 		this.vocab = vocab;
 	}
 	
@@ -60,7 +59,7 @@ public class Word2VecModel implements Serializable {
 			);
 	}
 	
-	/** Determine whether word is in vocabulary. */
+	/** @return whether word is in vocabulary */
 	public boolean containsWord(String word) {
 		return vocab.containsKey(word);
 	}
@@ -83,8 +82,7 @@ public class Word2VecModel implements Serializable {
 			return false;
 		}
 		
-		Word2VecModel otherModel = (Word2VecModel) other;
-		return this.vocab.equals(otherModel.vocab);
+		return this.vocab.equals(((Word2VecModel)other).vocab);
 		
 	}
 

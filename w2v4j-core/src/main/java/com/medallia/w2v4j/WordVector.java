@@ -3,13 +3,12 @@ package com.medallia.w2v4j;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import com.google.common.collect.ImmutableList;
 import com.medallia.w2v4j.utils.MathUtils;
 
 /**
- * Vector representation for a word along with information about its path in the Huffman Tree.
+ * Vector representation for a word along with information about its path in the Huffman Tree
  */
 public class WordVector implements Serializable {
 	private static final long serialVersionUID = 0L;
@@ -29,7 +28,7 @@ public class WordVector implements Serializable {
 	final ImmutableList<NodeVector> points;
 	final ImmutableList<Code> code;
 	
-	public WordVector(int layerSize, double sampleThreshold, double frequency, List<NodeVector> points, List<Code> code) {
+	WordVector(int layerSize, double sampleThreshold, double frequency, List<NodeVector> points, List<Code> code) {
 		this.samplingRate = computeSamplingRatio(sampleThreshold, frequency);
 		this.vector = MathUtils.randomInitialize(layerSize);
 		this.points = ImmutableList.copyOf(points);
@@ -40,11 +39,12 @@ public class WordVector implements Serializable {
 		return Math.min(1, Math.sqrt(sample / frequency));
 	}
 	
-	/** Returns true if the word is selected while sampling. */
-	boolean sample() {
-		return samplingRate == 1 ? true : ThreadLocalRandom.current().nextDouble() < samplingRate;
+	/** @return Rate at which this word should be sampled */
+	double getSamplingRate() {
+		return samplingRate;
 	}
 	
+	/** Length of the Huffman code for this word */
 	int getCodeLen() {
 		return code.size();
 	}

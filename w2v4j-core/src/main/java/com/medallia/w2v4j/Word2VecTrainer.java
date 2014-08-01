@@ -28,26 +28,31 @@ import com.medallia.w2v4j.tokenizer.Tokenizer;
 import com.medallia.w2v4j.utils.MathUtils;
 
 /**
- * {@Code Word2VecTrainer} defines the trainer for word2vec model.
+ * {@link Word2VecTrainer} defines the trainer for word2vec model.
+ * <p>
+ * Instances of {@link Word2VecTrainer} should be created using the {@link {@link Word2VecTrainerBuilder}
+ * and can be re-used to train multiple models
  */
 public class Word2VecTrainer {
 	private static final Logger logger = LogManager.getLogger(); 
 	
-	static final double MIN_ALPHA = 0.0001; // don't allow learning rate to drop below this threshold
-	static final int CHUNK_SIZE = 10000;	// number of sentences per chunk
-	static final String OOV_WORD = "<OOV>"; // mark for out-of-vocabulary word
+	/** Only log a debug message every 10,000 sentences */
+	private static final int DEBUG_THROTTLE_FACTOR = 10_000;
 	
+	private static final double MIN_ALPHA = 0.0001; 				// don't allow learning rate to drop below this threshold
+	private static final int BATCH_SIZE = 10_000;					// number of sentences per batch for multi-threaded processing
+	private static final String OOV_WORD = "<OOV>"; 				// constant for out-of-vocabulary words
 	
-	final int numWorker;		// number of threads for training
-	final int window;			// window size 
-	final int layerSize;		// dimension of word vector
-	final int minCount; 		// the minimum frequency that a word in vocabulary needs to satisfy
-	final double initAlpha;		// initial learning rate
-	final NeuralNetworkLanguageModel model;			// neural network model
-	final boolean sampling;		// enable sub-sampling for frequent words
-	final double samplingThreshold; // only useful when sampling is turned on
-
-	final Tokenizer tokenizer;
+	private final int numWorker;							// number of threads for training
+	private final int window;								// window size 
+	private final int layerSize;							// dimension of word vector
+	private final int minCount; 							// the minimum frequency that a word in vocabulary needs to satisfy
+	private final double initAlpha;							// initial learning rate
+	private final NeuralNetworkLanguageModel model;			// neural network model
+	private final boolean sampling;							// enable sub-sampling for frequent words
+	private final double samplingThreshold; 				// only useful when sampling is turned on
+	
+	private final Tokenizer tokenizer;						// tokenizer to split sentences into words
 	
 	private Word2VecTrainer(Word2VecTrainerBuilder builder) {
 		this.window = builder.window;
@@ -61,68 +66,94 @@ public class Word2VecTrainer {
 		this.samplingThreshold = builder.samplingThreshold;
 	}
 
-	/** Builder for Word2Vec. */
+	/** Builder for {@link Word2VecTrainer} */
 	public static class Word2VecTrainerBuilder {
 		private int window = 5;
 		private int layerSize = 100;
 		private int minCount = 5;
 		private double initAlpha = 0.025;
-		private int numWorker = 4;
+		private int numWorker = Runtime.getRuntime().availableProcessors();
 		private boolean sampling = false;
 		private NeuralNetworkLanguageModel model = NeuralNetworkLanguageModel.SKIP_GRAM;
 		private double samplingThreshold = 1e-5;
 		
 		private Tokenizer tokenizer;
 		
+		/**
+		 * Create a new {@link Word2VecTrainerBuilder}
+		 */
 		public Word2VecTrainerBuilder() {
 			this.tokenizer = new RegexTokenizer();
 		}
 		
+		/**
+		 * Window size, defaults to 5
+		 */
 		public Word2VecTrainerBuilder window(int window) {
 			this.window = window;
 			return this; 
 		}
 		
+		/**
+		 * Dimension of the word vector, defaults to 100
+		 */
 		public Word2VecTrainerBuilder layerSize(int layerSize) {
 			this.layerSize = layerSize;
 			return this;
 		}
 		
+		/**
+		 * Minimum frequency of words in the corpus to be considered, defaults to 5
+		 */
 		public Word2VecTrainerBuilder minCount(int minCount) {
 			this.minCount = minCount;
 			return this;
 		}
 		
+		/**
+		 * Initial learning rate, typically between 0.0 and 1.0
+		 * Note the default value is 0.025
+		 */
 		public Word2VecTrainerBuilder alpha(double alpha) {
 			this.initAlpha = alpha;
 			return this;
 		}
 		
+		/**
+		 * Specify a custom tokenizer, defaults to split on whitespace
+		 */
 		public Word2VecTrainerBuilder tokenizer(Tokenizer tokenizer) {
 			this.tokenizer = tokenizer;
 			return this;
 		}
 		
+		/**
+		 * Number of concurrent threads to use for training, defaults to {@link Runtime#availableProcessors()}
+		 */
 		public Word2VecTrainerBuilder numWorker(int numWorker) {
 			this.numWorker = numWorker;
 			return this;
 		}
 		
+		/** @see {@link NeuralNetworkLanguageModel} */
 		public Word2VecTrainerBuilder model(NeuralNetworkLanguageModel model) {
 			this.model = model;
 			return this;
 		}
 		
+		/** Whether to use subsampling */
 		public Word2VecTrainerBuilder sampling(boolean sampling) {
 			this.sampling = sampling;
 			return this;
 		}
 		
+		/** Threshold to use for sampling, defaults to 1e-5 */
 		public Word2VecTrainerBuilder samplingThreshold(double threshold) {
 			this.samplingThreshold = threshold;
 			return this;
 		}
 		
+		/** @return {@link Word2VecTrainer} object */
 		public Word2VecTrainer build() {
 			return new Word2VecTrainer(this);
 		}
@@ -133,13 +164,16 @@ public class Word2VecTrainer {
 		return train(IteratorUtils.fileSentenceIterable(file));
 	}
 	
-	/** Train with Hierarchical Softmax. */
+	/** Train model on a {@link Iterable} of sentences */
 	public Word2VecModel train(Iterable<String> sentences) {
 		logger.info("Start building model...");
 		TrainingContext context = gatherContext(sentences);
 		return buildModel(context, sentences);
 	}
 	
+	/**
+	 * Builds vocabulary and accumulates word counts
+	 */
 	private TrainingContext gatherContext(Iterable<String> sentences) {
 		HuffmanTree huffman = buildVocabulary(sentences);
 		ImmutableMap<String, WordVector> vocab = huffman.vocab;
@@ -151,6 +185,7 @@ public class Word2VecTrainer {
 		return new TrainingContext(vocab, wordCount, window, layerSize);
 	}
 
+	/** Creates Huffman tree to build codes for each word */
 	private HuffmanTree buildVocabulary(Iterable<String> sentences) {
 		Map<String, Long> wordCounts = Maps.newHashMap();
 		
@@ -169,15 +204,15 @@ public class Word2VecTrainer {
 		return new HuffmanTree(wordCounts);
 	}
 
-	/** Build model in parallel */
+	/** Train model concurrently */
 	private Word2VecModel buildModel(TrainingContext context, Iterable<String> sentences) {
 		ExecutorService executor = Executors.newFixedThreadPool(numWorker);
 		ExecutorCompletionService<Integer> executorCompletionService = new ExecutorCompletionService<Integer>(executor);
-		Iterable<List<String>> chunks = Iterables.partition(sentences, CHUNK_SIZE);
+		Iterable<List<String>> chunks = Iterables.partition(sentences, BATCH_SIZE);
 		int numCurrent = 0;
 		int numComplete = 0;
 
-		// Submit task only when a thread is idle, this makes streaming in chunks less memory intensive
+		// Avoid materializing all sentences in memory at once
 		for (List<String> chunk : chunks) {
 			numCurrent++;
 			if(numCurrent > numWorker) {
@@ -192,7 +227,7 @@ public class Word2VecTrainer {
 			executorCompletionService.submit(new Word2VecWorker(context, chunk), 0);
 		}
 		
-		// wait for completion
+		// Wait for pending tasks to complete
 		while (numComplete < numCurrent) {
 			try {
 				executorCompletionService.take();
@@ -211,23 +246,29 @@ public class Word2VecTrainer {
 		return new Word2VecModel(context.vocab);
 	}
 	
-	/** Returns true if word is out of vocabulary. */
+	/** 
+	 * @return if the given word is the out of vocabulary constant
+	 * Note that we use a reference equality check since we store the constant in the string arrays
+	 */
 	private static boolean isOovWord(String word) {
-		return OOV_WORD.equals(word);
+		return OOV_WORD == word;
 	}
 
-	// variables that needs to synchronize among workers on different threads
-	// abstract these parameters out to assert the train method has no side effect and is thread safe
+	/**
+	 * Wrapper class for thread-safe variables that need to be synchronized among workers on different threads
+	 * and constants that are needed for training
+	 */ 
 	static class TrainingContext {
-		
+		// Fixed parameters for training
 		private final long totalWordCount;
 		private final ImmutableMap<String, WordVector> vocab;
 		private final int window;
 		private final int layerSize;
 		
-		private final AtomicLong wordCount = new AtomicLong(0);		// current word count
-		private final AtomicLong sentenceCount = new AtomicLong(0);	// current sentence count
-		private volatile double alpha;							// learning rate, decreasing as training proceeds
+		// These will be updated by the workers
+		private final AtomicLong wordCount = new AtomicLong(0);			// current word count
+		private final AtomicLong sentenceCount = new AtomicLong(0);		// current sentence count
+		private volatile double alpha;									// learning rate, decreasing as training proceeds
 		
 		private TrainingContext(ImmutableMap<String, WordVector> vocab, long wordCount, int window, int layerSize) {
 			this.vocab = vocab;
@@ -238,7 +279,7 @@ public class Word2VecTrainer {
 	}
 
 	/**
-	 * HuffmanTree for creating tree structure in Hierarchical Softmax. 
+	 * HuffmanTree for creating tree structure using Hierarchical Softmax
 	 */
 	private class HuffmanTree {
 		private final ImmutableMap<String, WordVector> vocab;
@@ -318,7 +359,7 @@ public class Word2VecTrainer {
 		
 	}
 	
-	/** Node of a huffman tree. */
+	/** Node of a Huffman tree */
 	private static class HuffmanNode implements Comparable<HuffmanNode> {
 		private final String word; 
 		private final long count;
@@ -356,7 +397,7 @@ public class Word2VecTrainer {
 	
 	/** Type of neural network language model */
 	public enum NeuralNetworkLanguageModel {
-		/** Skip-Gram Model*/
+		/** Skip-Gram Model */
 		SKIP_GRAM {
 			@Override
 			public void trainOnSentence(String[] sentence, TrainingContext context) {
@@ -395,7 +436,7 @@ public class Word2VecTrainer {
 				}
 			}
 		},
-		/** Continuous Bag of Words*/
+		/** Continuous Bag of Words */
 		CBOW {
 			@Override
 			public void trainOnSentence(String[] sentence, TrainingContext context) {
@@ -439,18 +480,19 @@ public class Word2VecTrainer {
 			
 		};		
 		
-		/** Train model on sentence. */
+		/** Train model on sentence */
 		public abstract void trainOnSentence(String[] sentence, TrainingContext context);
 	}
 
 	/**
-	 * Word2VecWorkers trains the word2vec model concurrently using asynchronous stochastic gradient descent.  
+	 * {@link Word2VecWorker} represent workers that can be concurrently executed to train the word2vec model 
+	 * using asynchronous stochastic gradient descent
 	 */
-	class Word2VecWorker implements Runnable {
+	private class Word2VecWorker implements Runnable {
 		private final TrainingContext context;
 		private final Iterable<String> sentences;
 		
-		public Word2VecWorker(TrainingContext context, Iterable<String> sentences) {
+		private Word2VecWorker(TrainingContext context, Iterable<String> sentences) {
 			this.context = context;
 			this.sentences = sentences;
 		}
@@ -471,7 +513,7 @@ public class Word2VecTrainer {
 				long sentCount = context.sentenceCount.incrementAndGet();
 				if (sentCount % 100 == 0) {
 					context.alpha = Math.max(MIN_ALPHA, initAlpha * (1 - 1.0 * crtWordCount / context.totalWordCount));
-					if (sentCount % 10000 == 0) {
+					if (sentCount % DEBUG_THROTTLE_FACTOR == 0) {
 						logger.info(String.format("%d sentences trained..", sentCount));
 					}
 				}
@@ -481,7 +523,7 @@ public class Word2VecTrainer {
 		
 		/**
 		 * Replace words that do not exist in the vocabulary (out of vocabulary or OOV words)
-		 * with a constant string OOV_WORD for performance
+		 * with a constant string {@link #OOV_WORD} for performance
 		 */
 		private int replaceOovWords(String[] sentence) {
 			int numValidWord = 0; 
@@ -495,16 +537,15 @@ public class Word2VecTrainer {
 			return numValidWord;
 		}
 		
-		/** Sub-sampling words. */
+		/** @return Subset of the input containing the samples */
 		private String[] sampleWords(String[] words) {
 			List<String> sampled = Lists.newArrayList();
 			for (String word : words) {
-				if (!isOovWord(word)) {
-					WordVector wordVec = context.vocab.get(word);
-					if (wordVec.sample()) {
-						sampled.add(word);
-					}
-				}
+				if (isOovWord(word))
+					continue;
+				double samplingRate = context.vocab.get(word).getSamplingRate();
+				if (samplingRate == 1 || ThreadLocalRandom.current().nextDouble() < samplingRate)
+					sampled.add(word);
 			}
 			
 			return sampled.toArray(new String[0]);

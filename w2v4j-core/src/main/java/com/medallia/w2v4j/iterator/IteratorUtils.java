@@ -10,7 +10,7 @@ import org.apache.commons.io.FileUtils;
  * Utilities for iterating through sentences. 
  */
 public class IteratorUtils {
-	
+	/** @return {@link Iterable} for the newline delimited file */
 	public static Iterable<String> fileSentenceIterable(final File file) {
 		return new Iterable<String>() {
 			@Override

@@ -8,9 +8,8 @@ import com.google.common.base.Preconditions;
 public class MathUtils {
 	
 	/** 
-	 * Compute dot product of two vector 
-	 * Note that this mutates the input for performance
-	 * */
+	 * @return dot product of two given vectors 
+	 */
 	public static double dotProduct(double[] vec1, double[] vec2) {
 		Preconditions.checkArgument(vec1.length == vec2.length, "dimension not match");
 		double product = 0;
@@ -22,7 +21,6 @@ public class MathUtils {
 	
 	/**
 	 * Add two vectors, result is saved in the first vector
-	 * Note that this mutates the input for performance
 	 */
 	public static void vecAdd(double[] vec1, double[] vec2) {
 		for (int i = 0; i < vec1.length; i++) {
@@ -31,7 +29,7 @@ public class MathUtils {
 	}
 	
 	/** 
-	 * Element wise divide of vector.
+	 * Scalar divide of the given vector
 	 * Note that this mutates the input for performance 
 	 */
 	public static void vecDivide(double vec[], double num) {
@@ -40,7 +38,7 @@ public class MathUtils {
 		}
 	}
 	
-	/** Gradient update. */
+	/** Gradient update */
 	public static void gradientUpdate(double[] vecToUpdate, final double[] vec, double gradient) {
 		for (int i = 0; i < vecToUpdate.length; i++) {
 			vecToUpdate[i] += gradient * vec[i];
@@ -59,7 +57,7 @@ public class MathUtils {
 	}
 	
 	/** 
-	 * Compute vector length of vector. 
+	 * Compute L2-norm of vector. 
 	 */
 	public static double vecLen(double[] vec) {
 		double l2 = 0;
@@ -69,7 +67,7 @@ public class MathUtils {
 		return Math.sqrt(l2);
 	}
 	
-	/** Returns a randomly initialized double vector. */
+	/** @return a double vector whose values are randomly chosen from (0, 1) */
 	public static double[] randomInitialize(int size) {
 		double[] arr = new double[size];
 		for (int i = 0; i < arr.length; i++) {
@@ -78,7 +76,7 @@ public class MathUtils {
 		return arr;
 	}
 	
-	/** Sigmoid activation function. */
+	/** Sigmoid activation function */
 	public static double sigmoid(double x) {
 		return 1.0 / (1 + Math.exp(-x));
 	}

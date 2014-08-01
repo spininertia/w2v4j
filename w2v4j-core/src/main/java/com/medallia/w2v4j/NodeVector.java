@@ -6,13 +6,17 @@ import java.util.Arrays;
 /**
  * Vector representation for inner node of Huffman Tree for Hierarchical Softmax.  
  */
-public class NodeVector implements Serializable{
+public class NodeVector implements Serializable {
 	private static final long serialVersionUID = 0L;
 	
-	double[] vector;
+	final double[] vector;
 	
-	public NodeVector(int layerSize) {
-		vector = new double[layerSize]; 
+	/**
+	 * Create a new {@link NodeVector}
+	 * @param layerSize Fixed dimension of the vector
+	 */
+	NodeVector(int layerSize) {
+		this.vector = new double[layerSize]; 
 	}
 	
 	@Override
@@ -25,8 +29,7 @@ public class NodeVector implements Serializable{
 			return false;
 		}
 		
-		NodeVector node = (NodeVector) other;
-		return Arrays.equals(vector, node.vector);
+		return Arrays.equals(vector, ((NodeVector)other).vector);
 	}
 
 	@Override

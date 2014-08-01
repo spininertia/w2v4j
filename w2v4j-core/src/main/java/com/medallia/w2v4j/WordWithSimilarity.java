@@ -1,13 +1,13 @@
 package com.medallia.w2v4j;
 
 /**
- * Word with its similarity. 
+ * Wrapper for a word and its similarity to some other word 
  */
 public class WordWithSimilarity implements Comparable<WordWithSimilarity>{
 	private final String word;
 	private final double similarity;
 	
-	public WordWithSimilarity(String word, double similarity) {
+	WordWithSimilarity(String word, double similarity) {
 		this.word = word;
 		this.similarity = similarity;
 	}
@@ -20,17 +20,13 @@ public class WordWithSimilarity implements Comparable<WordWithSimilarity>{
 		return similarity;
 	}
 	
-
 	@Override
 	public int compareTo(WordWithSimilarity word) {
-		if (this.similarity < word.similarity) {
-			return -1;
-		}
-		return 1;
+		return this.similarity < word.similarity ? -1 : 1;
 	}
 	
 	@Override
 	public String toString() {
-		return word + "\t" + similarity;
+		return String.format("%s\t%s", word, similarity);
 	}
 }
