@@ -31,7 +31,7 @@ import com.medallia.w2v4j.utils.MathUtils;
  * {@Code Word2VecTrainer} defines the trainer for word2vec model.
  */
 public class Word2VecTrainer {
-	private static final Logger logger = LogManager.getRootLogger(); 
+	private static final Logger logger = LogManager.getLogger(); 
 	
 	static final double MIN_ALPHA = 0.0001; // don't allow learning rate to drop below this threshold
 	static final int CHUNK_SIZE = 10000;	// number of sentences per chunk
@@ -146,7 +146,7 @@ public class Word2VecTrainer {
 		long wordCount = huffman.wordCount;
 		
 		logger.info("Vocabulary established..");
-		logger.info(String.format("numWords in Corpus:%d", wordCount));
+		logger.info(String.format("Number of words in Corpus:%d", wordCount));
 		
 		return new TrainingContext(vocab, wordCount, window, layerSize);
 	}
