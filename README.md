@@ -87,3 +87,5 @@ To load model from disk:
 ```
 Word2VecModel model = SerializationUtils.load(model, PATH_TO_LOAD);
 ```
+
+Check out w2v4j-example for more example.
