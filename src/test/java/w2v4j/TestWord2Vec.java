@@ -1,13 +1,20 @@
 package w2v4j;
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableList;
 import com.medallia.w2v4j.Word2VecModel;
 import com.medallia.w2v4j.Word2VecTrainer;
 import com.medallia.w2v4j.Word2VecTrainer.NeuralNetworkLanguageModel;
@@ -43,19 +50,21 @@ public class TestWord2Vec {
 		}
 	}
 	
-//	@Test
-//	public void testSerialization() {
-//		Word2VecModel model;
-//		
-//		ByteBuffer buffer = new ByteBuffer();
-//		ByteArrayOutputStream
-//		ObjectOutputStream out = new ObjectOutputStream();
-//		out.writeObject(model);
-//		out.close();
-//		
-//		Word2VecModel deserialized = ...
-//				
-//		assertEquals(deserialized, model);
-//		
-//	}
+	@Test
+	public void testSerialization() throws IOException, ClassNotFoundException {
+		ImmutableList<String> sentences = ImmutableList.of("machine learning is awesome", "word2vec is fun");
+		Word2VecTrainer trainer = new Word2VecTrainerBuilder()
+			.minCount(0)
+			.build();
+		Word2VecModel model = trainer.train(sentences);
+		
+		ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
+		ObjectOutputStream out = new ObjectOutputStream(byteArray);
+		out.writeObject(model);
+		
+		ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(byteArray.toByteArray()));
+		Word2VecModel deserialized = (Word2VecModel) in.readObject();
+		assertEquals(deserialized, model);
+		
+	}
 }

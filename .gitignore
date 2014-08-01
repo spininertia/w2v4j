@@ -1,6 +1,7 @@
 .classpath
 .settings
 .project
+.DS_Store
 target
 src/main/resources/data
 src/main/resources/model

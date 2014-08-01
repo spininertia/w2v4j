@@ -1,6 +1,7 @@
 package com.medallia.w2v4j;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -23,7 +24,6 @@ public class WordVector implements Serializable {
 		
 		public int getValue() { return value; }
 	}
-	
 	private final double samplingRate;	// sampling probability to sample this word
 	final double[] vector;
 	final ImmutableList<NodeVector> points;
@@ -47,5 +47,33 @@ public class WordVector implements Serializable {
 	
 	int getCodeLen() {
 		return code.size();
+	}
+	
+	@Override
+	public boolean equals(Object other) {
+		if (other == null) {
+			return false;
+		}
+		
+		if (!(other instanceof WordVector)) {
+			return false;
+		}
+		
+		WordVector otherWord = (WordVector) other;
+		return samplingRate == otherWord.samplingRate 
+				&& Arrays.equals(vector, otherWord.vector)
+				&& points.equals(otherWord.points)
+				&& code.equals(otherWord.code);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = 17;
+		long f = Double.doubleToLongBits(samplingRate);
+		result = 31 * result + (int) (f ^ (f >>> 32));
+		result = 31 * result + Arrays.hashCode(vector);
+		result = 31 * result + points.hashCode();
+		result = 31 * result + code.hashCode();
+		return result;
 	}
 }

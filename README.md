@@ -41,7 +41,7 @@ Here are the parameters you can specify for word2vec model:
 There are other two parameters you can specify:
 
 - tokenizer: Tokenize sentence to words. The default value is `com.medallia.w2v4j.tokenizer.RegexTokenizer` which tokenizes a sentence by whitespace. You can customize the behavior by extending `com.medallia.w2v4j.tokenizer.tokenizer`. For example, you can write a wrapper for [Stanford Tokenizer](http://nlp.stanford.edu/software/tokenizer.shtml), or applying pos tagging/stop word list to filter out some words.
-- model: the neural network language model used to train the word representation. default value is NeuralNetworkLanguageModel.SKIP_GRAM, another option is NeuralNetWorkLanguagemodel.CBOW.
+- model: the neural network language model used to train the word representation. default value is NeuralNetworkLanguageModel.SKIP_GRAM (skip gram), another option is NeuralNetworkLanguagemodel.CBOW (continuous bag of words).
 
 
 After the model is trained, you can test its functionality using following method.

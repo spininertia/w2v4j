@@ -26,7 +26,6 @@ import com.medallia.w2v4j.iterator.IteratorUtils;
 import com.medallia.w2v4j.tokenizer.RegexTokenizer;
 import com.medallia.w2v4j.tokenizer.Tokenizer;
 import com.medallia.w2v4j.utils.MathUtils;
-import com.sun.istack.internal.Nullable;
 
 /**
  * {@Code Word2VecTrainer} defines the trainer for word2vec model.
@@ -321,18 +320,18 @@ public class Word2VecTrainer {
 	
 	/** Node of a huffman tree. */
 	private static class HuffmanNode implements Comparable<HuffmanNode> {
-		@Nullable private final String word; 
+		private final String word; 
 		private final long count;
 		HuffmanNode left;
 		HuffmanNode right;
 		
 		/** Creates a leaf {@link HuffmanNode} */
-		private HuffmanNode(@Nullable String word, long count) {
+		private HuffmanNode(String word, long count) {
 			this(word, count, null, null);
 		}
 		
 		/** Creates an intermediate {@link HuffmanNode} */
-		private HuffmanNode(@Nullable String word, long count, HuffmanNode left, HuffmanNode right) {
+		private HuffmanNode(String word, long count, HuffmanNode left, HuffmanNode right) {
 			this.word = word;
 			this.count = count;
 			this.left = left;
@@ -355,6 +354,7 @@ public class Word2VecTrainer {
 		}
 	}
 	
+	/** Type of neural network language model */
 	public enum NeuralNetworkLanguageModel {
 		/** Skip-Gram Model*/
 		SKIP_GRAM {

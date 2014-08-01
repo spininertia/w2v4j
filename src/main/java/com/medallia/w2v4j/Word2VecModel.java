@@ -72,4 +72,26 @@ public class Word2VecModel implements Serializable {
 		double[] vector = vocab.get(word).vector;
 		return Arrays.copyOf(vector, vector.length);
 	}
+	
+	@Override
+	public boolean equals(Object other) {
+		if (other == null) {
+			return false;
+		}
+		
+		if (!(other instanceof Word2VecModel)) {
+			return false;
+		}
+		
+		Word2VecModel otherModel = (Word2VecModel) other;
+		return this.vocab.equals(otherModel.vocab);
+		
+	}
+
+	@Override
+	public int hashCode() {
+		int result = 17;
+		result = 31 * result + vocab.hashCode();
+		return result;
+	}
 }
